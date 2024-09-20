@@ -12,9 +12,9 @@ class TreeNode:
     def is_leaf(self):
         return self.label is not None  # boolean, if it is leaf or not (so that we know if it is the classifier node)
 
-class DecisionTree:
-    def __init__(self, rootNode=None):
-        self.rootNode=rootNode   #the decision tree's root node 
+# class DecisionTree:
+#     def __init__(self, rootNode=None):
+#         self.rootNode=rootNode   #the decision tree's root node 
 
 
 # def impurity(y_array):
@@ -32,10 +32,11 @@ def gini_index(y_array):
     p_1 = num_ones / total
     return 1 - (p_0 ** 2 + p_1 ** 2)
 
-def define_splits(x, y): 
-    #returns splits: dictionary of the possible splitting point and the calculated impurity for them 
+# Returns splits: dictionary of the possible splitting point and the calculated impurity for them 
+def define_splits(x, y):
     sorted_col = np.sort(np.unique(x))
-    splitpoints = (sorted_col[0:-1] + sorted_col[1:])/2 
+    splitpoints = (sorted_col[0:-1] + sorted_col[1:])/2
+
     splits = {}
     for i, c in enumerate(splitpoints):
         left_ch = y[x>c]
@@ -47,7 +48,7 @@ def define_splits(x, y):
 def best_split(x,y):
     split_dict = define_splits(x,y)
     if not split_dict:
-        return None, None # if no splitting points points are found for the particular feature, pass 
+        return None, None # if no splitting points are found for the particular feature, pass 
     split_value = min(split_dict, key=split_dict.get) #the key in the dictionary (splitting point) for which the value (impurity) is minimized
     return split_value, split_dict[split_value]
 
@@ -72,6 +73,8 @@ def tree_grow(x, y, nmin, minleaf, nfeat):
 
     for feature_index in features_to_consider: # to find the best splitting point across all features
         split_point, impurity_value = best_split(x[:, feature_index], y) #best splitting point for each feature
+        if split_point is None:
+            continue
 
         if impurity_value < best_impurity: 
             best_impurity = impurity_value
@@ -88,9 +91,9 @@ def tree_grow(x, y, nmin, minleaf, nfeat):
     #recursively grow a tree for each child, which will be in reality a branch of the initial tree
     left_child = tree_grow(x[left_mask], y[left_mask], nmin, minleaf, nfeat)
     right_child = tree_grow(x[right_mask], y[right_mask], nmin, minleaf, nfeat)
-    node = TreeNode(feature=best_feature, split_thr=best_split_point, left_child=left_child, right_child=right_child)
+    tree = TreeNode(feature=best_feature, split_thr=best_split_point, left_child=left_child, right_child=right_child)
 
-    return node, DecisionTree(rootNode=node)
+    return tree
             
 
 def predict_single(instance, node):
@@ -113,9 +116,7 @@ def tree_pred(x, tr):
 
 
 data = pd.read_csv('./change.csv', sep=',', header= None)
-print(data.head())
+x = data.to_numpy()[1:,:-1].astype(int)
+y = data.to_numpy()[1:,-1].astype(int)
 
-_, tr = tree_grow(data.to_numpy()[:,:-1], data.to_numpy()[:,-1], 5, 1, 7)
-
-# y =  data.to_numpy()[:,-1]
-# np.argmax(np.bincount(y))
+tr = tree_grow(x, y, 1, 1, 3)
