@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import random
 
 class TreeNode:
     def __init__(self, feature=None, split_thr=None, left_child=None, right_child=None, label=None, is_root = False):
@@ -112,7 +113,59 @@ def tree_pred(x, tr):
     y: 1D numpy array of predicted class labels
     """
     return np.array([predict_single(row, tr) for row in x])
+
     
+def draw_sample(x, y):
+    """
+    Performs sampling with replacement on data
+
+    :x: attribute values
+    :y: class labels
+    """
+    n_samples = len(y)
+    sample_idx = random.choices(range(n_samples), k=n_samples)
+
+    x_sampled = [x[i] for i in sample_idx]
+    y_sampled = [y[i] for i in sample_idx]
+
+    return x_sampled, y_sampled
+
+def tree_grow_b(x, y, nmin, minleaf, nfeat, m):
+    """
+    Draws m bootstrap samples and returns a list of m trees
+
+    :x: attribute values
+    :y: class labels
+    :nmin: minimum number of observations in node for split
+    :minleaf: minimum number of observations required for a leaf node
+    :nfeat: number of features considered for each split 
+    :m: number of bootstrap samples to be drawn
+    """    
+    ensemble = []
+    for i in range(m):
+        x_sampled, y_sampled = draw_sample(x, y)
+        ensemble.append[tree_grow(x_sampled, y_sampled, nmin, minleaf, nfeat)]
+
+    return ensemble
+
+    
+
+def tree_pred_b(x, trees):
+    """
+    Gets predictions from m trees for all data points
+
+    x: 2D numpy array (n_samples, n_features) 
+    tr: The decision tree object (root node) created in tree_grow
+    """
+    votes = [tree_pred(x, tr) for tr in trees]
+
+    # Transpose so that every row has the votes for a sample 
+    votes_array =  np.vstack(votes).T
+    
+    preds = [np.argmax(np.bincount(votes_array[i])) for i in range(votes_array.shape[0])]
+
+    return np.array(preds)
+
 
 
 data = pd.read_csv('./change.csv', sep=',', header= None)
