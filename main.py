@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import random
+from sklearn.metrics import accuracy_score
 
 class TreeNode:
     def __init__(self, feature=None, split_thr=None, left_child=None, right_child=None, label=None, is_root = False):
@@ -39,14 +40,14 @@ def define_splits(x, y):
     splitpoints = (sorted_col[0:-1] + sorted_col[1:])/2
 
     splits = {}
-    for i, c in enumerate(splitpoints):
-        left_ch = y[x>c]
-        right_ch = y[x<=c]
-
+    for c in splitpoints:
+        left_ch = y[x<=c]
+        right_ch = y[x>c]
         splits[c] = (len(left_ch)/len(y))*gini_index(left_ch) + (len(left_ch)/len(y))*gini_index(right_ch)
+
     return splits
 
-def best_split(x,y):
+def best_split(x, y):
     split_dict = define_splits(x,y)
     if not split_dict:
         return None, None # if no splitting points are found for the particular feature, pass 
@@ -68,7 +69,7 @@ def tree_grow(x, y, nmin, minleaf, nfeat):
     if len(y) < nmin or len(set(y)) == 1:  #stopping if pure node or fewer than nmin samples, creates leaf node
         return TreeNode(label=majority_class(y))
 
-    features_to_consider = np.random.choice(x.shape[1], nfeat, replace=False) #for random forests, bagging
+    features_to_consider = np.random.choice(range(x.shape[1]), nfeat, replace=False) #for random forests, bagging
 
     best_feature, best_split_point, best_impurity = None, None, 1 #initialization, 1 is more than the max gini could be
 
@@ -87,7 +88,7 @@ def tree_grow(x, y, nmin, minleaf, nfeat):
     
     #now we will split the node's data to the two children
     left_mask = x[:, best_feature] > best_split_point
-    right_mask =  x[:, best_feature] < best_split_point
+    right_mask =  x[:, best_feature] <= best_split_point
 
     #recursively grow a tree for each child, which will be in reality a branch of the initial tree
     left_child = tree_grow(x[left_mask], y[left_mask], nmin, minleaf, nfeat)
@@ -125,8 +126,8 @@ def draw_sample(x, y):
     n_samples = len(y)
     sample_idx = random.choices(range(n_samples), k=n_samples)
 
-    x_sampled = [x[i] for i in sample_idx]
-    y_sampled = [y[i] for i in sample_idx]
+    x_sampled = np.array([x[i] for i in sample_idx])
+    y_sampled = np.array([y[i] for i in sample_idx])
 
     return x_sampled, y_sampled
 
@@ -144,7 +145,7 @@ def tree_grow_b(x, y, nmin, minleaf, nfeat, m):
     ensemble = []
     for i in range(m):
         x_sampled, y_sampled = draw_sample(x, y)
-        ensemble.append[tree_grow(x_sampled, y_sampled, nmin, minleaf, nfeat)]
+        ensemble.append(tree_grow(x_sampled, y_sampled, nmin, minleaf, nfeat))
 
     return ensemble
 
@@ -168,8 +169,16 @@ def tree_pred_b(x, trees):
 
 
 
-data = pd.read_csv('./change.csv', sep=',', header= None)
-x = data.to_numpy()[1:,:-1].astype(int)
-y = data.to_numpy()[1:,-1].astype(int)
+data = data = np.loadtxt('dummy_data.txt', delimiter=',')
+x = data[:,:-1]
+y = data[:,-1]
 
+# Single tree
 tr = tree_grow(x, y, 1, 1, 3)
+preds1 = tree_pred(x, tr)
+# Ensemble of trees
+trees = tree_grow_b(x, y, 1, 1, 3, 5)
+preds2 = tree_pred_b(x, trees)
+
+print('Single tree', accuracy_score(preds1, y))
+print('\nEnsemble of trees', accuracy_score(preds2, y))
