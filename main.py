@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import random
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, recall_score, precision_score, confusion_matrix
 
 class TreeNode:
     def __init__(self, feature=None, split_thr=None, left_child=None, right_child=None, label=None, is_root = False):
@@ -34,6 +34,7 @@ def gini_index(y_array):
     p_1 = num_ones / total
     return 1 - (p_0 ** 2 + p_1 ** 2)
 
+
 # Returns splits: dictionary of the possible splitting point and the calculated impurity for them 
 def define_splits(x, y):
     sorted_col = np.sort(np.unique(x))
@@ -46,6 +47,7 @@ def define_splits(x, y):
         splits[c] = (len(left_ch)/len(y))*gini_index(left_ch) + (len(left_ch)/len(y))*gini_index(right_ch)
 
     return splits
+
 
 def best_split(x, y):
     split_dict = define_splits(x,y)
@@ -63,6 +65,7 @@ def majority_class(y):
     else:
         return 0
     # return np.argmax(np.bincount(y)) # this is used for leaf node's utility of predicting the majority class
+
 
 def tree_grow(x, y, nmin, minleaf, nfeat):
 
@@ -131,6 +134,7 @@ def draw_sample(x, y):
 
     return x_sampled, y_sampled
 
+
 def tree_grow_b(x, y, nmin, minleaf, nfeat, m):
     """
     Draws m bootstrap samples and returns a list of m trees
@@ -149,14 +153,13 @@ def tree_grow_b(x, y, nmin, minleaf, nfeat, m):
 
     return ensemble
 
-    
 
 def tree_pred_b(x, trees):
     """
     Gets predictions from m trees for all data points
 
-    x: 2D numpy array (n_samples, n_features) 
-    tr: The decision tree object (root node) created in tree_grow
+    :x: 2D numpy array (n_samples, n_features) 
+    :tr: The decision tree object (root node) created in tree_grow
     """
     votes = [tree_pred(x, tr) for tr in trees]
 
@@ -168,17 +171,58 @@ def tree_pred_b(x, trees):
     return np.array(preds)
 
 
+def write_results(filename, train_preds, y_train, test_preds, y_test):
+    """
+    Write results on train and test data in a text file
+    
+    :filename: how the text file is going to be named
+    :train_preds: predictions on train data
+    :y_train: train set labels
+    :test_preds: predictions on test data
+    :y_test: test set labels
+    """
+    with open(f'./{filename}.txt', 'w') as f:
+        f.write('Train Results')
+        f.write(f'\n accuracy: {accuracy_score(train_preds, y_train)}') 
+        f.write(f'\n precision: {precision_score(train_preds, y_train)}') 
+        f.write(f'\n recall: {recall_score(train_preds, y_train)}') 
+        f.write(f'\nConfusion martrix\n')
+        f.write(confusion_matrix(y_train, train_preds))
+        f.write('\nTest Results')
+        f.write(f'\n accuracy: {accuracy_score(test_preds, y_test)}') 
+        f.write(f'\n precision: {precision_score(test_preds, y_test)}') 
+        f.write(f'\n recall: {recall_score(test_preds, y_test)}') 
+        f.write(f'\nConfusion martrix\n')
+        f.write(confusion_matrix(y_test, test_preds))
 
-data = data = np.loadtxt('dummy_data.txt', delimiter=',')
-x = data[:,:-1]
-y = data[:,-1]
+    return
+
+
+# load train and test data from csv files
+data = np.genfromtxt('./eclipse_train.csv', delimiter=',', skip_header=1)
+test_data = np.genfromtxt('./eclipse_test.csv', delimiter=',', skip_header=1)
+
+# train data
+x_train = data[:, :-1]
+y_train = data[:,-1]
+# test data
+x_test = test_data[:, :-1]
+y_test = test_data[:,-1]
 
 # Single tree
-tr = tree_grow(x, y, 1, 1, 3)
-preds1 = tree_pred(x, tr)
-# Ensemble of trees
-trees = tree_grow_b(x, y, 1, 1, 3, 5)
-preds2 = tree_pred_b(x, trees)
+tr = tree_grow(x_train, y_train, 15, 5, 41)
+preds_train = tree_pred(x_train, tr)
+preds_test = tree_pred(x_test, tr)
+write_results('single_tree', preds_train, y_train, preds_test, y_test)
+# Bagging
+trees = tree_grow_b(x_train, y_train, 15, 5, 41, 100)
+preds_train_bag = tree_pred_b(x_train, trees)
+preds_test_bag = tree_pred_b(x_test, trees)
+write_results('bagging', preds_train_bag, y_train, preds_test_bag, y_test)
+# Random Forest
+forest = tree_grow_b(x_train, y_train, 15, 5, 6, 100)
+preds_train_for = tree_pred_b(x_train, forest)
+preds_test_for = tree_pred_b(x_test, forest)
+write_results('random_forest', preds_train_for, y_train, preds_test_for, y_test)
 
-print('Single tree', accuracy_score(preds1, y))
-print('\nEnsemble of trees', accuracy_score(preds2, y))
+
