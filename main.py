@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import random
 from sklearn.metrics import accuracy_score, recall_score, precision_score, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 class TreeNode:
     def __init__(self, feature=None, split_thr=None, left_child=None, right_child=None, label=None, is_root = False):
@@ -173,7 +175,7 @@ def tree_pred_b(x, trees):
 
 def write_results(filename, train_preds, y_train, test_preds, y_test):
     """
-    Write results on train and test data in a text file
+    Write results on train and test data in a text file and save confusion matrices
     
     :filename: how the text file is going to be named
     :train_preds: predictions on train data
@@ -186,14 +188,26 @@ def write_results(filename, train_preds, y_train, test_preds, y_test):
         f.write(f'\n accuracy: {accuracy_score(train_preds, y_train)}') 
         f.write(f'\n precision: {precision_score(train_preds, y_train)}') 
         f.write(f'\n recall: {recall_score(train_preds, y_train)}') 
-        f.write(f'\nConfusion martrix\n')
-        f.write(confusion_matrix(y_train, train_preds))
+
         f.write('\nTest Results')
         f.write(f'\n accuracy: {accuracy_score(test_preds, y_test)}') 
         f.write(f'\n precision: {precision_score(test_preds, y_test)}') 
         f.write(f'\n recall: {recall_score(test_preds, y_test)}') 
-        f.write(f'\nConfusion martrix\n')
-        f.write(confusion_matrix(y_test, test_preds))
+
+    # plot and save confusion matrix
+    train_cm = confusion_matrix(y_train, train_preds)
+    sns.heatmap(train_cm, annot=True, fmt="d")
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
+    plt.savefig(fname=f'cm_train_{filename}')
+    plt.close()
+    
+    test_cm = confusion_matrix(y_test, test_preds)
+    sns.heatmap(test_cm, annot=True, fmt="d")
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
+    plt.savefig(fname=f'cm_test_{filename}')
+    plt.close()
 
     return
 
