@@ -4,6 +4,8 @@ import random
 from sklearn.metrics import accuracy_score, recall_score, precision_score, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
+from statsmodels.stats.contingency_tables import mcnemar
+
 
 np.set_printoptions(threshold=np.inf)
 np.set_printoptions(suppress=True)
@@ -232,3 +234,29 @@ forest = tree_grow_b(x_train, y_train, 15, 5, 6, 100)
 preds_train_for = tree_pred_b(x_train, forest)
 preds_test_for = tree_pred_b(x_test, forest)
 write_results('random_forest', preds_train_for, y_train, preds_test_for, y_test)
+
+
+
+def stat_test_mcnemar(pred_1, pred_2, test):
+
+    #each vector has 1 in correct predictions and 0 in wrong ones 
+    correct_1 = np.where(pred_1 == test, 1, 0)  
+    correct_2 = np.where(pred_2 == test, 1, 0) 
+    #calculate cont table terms and define cont table
+    a = np.sum((correct_1 == 1) & (correct_2 == 1))  
+    b = np.sum((correct_1 == 1) & (correct_2 == 0))  
+    c = np.sum((correct_1 == 0) & (correct_2 == 1))  
+    d = np.sum((correct_1 == 0) & (correct_2 == 0))   
+    contingency_table = np.array([[a, b], [c, d]])
+    result = mcnemar(contingency_table, exact=False, correction=True)
+
+    return result
+
+
+result_A = stat_test_mcnemar(preds_test, preds_test_bag, y_test)
+result_B = stat_test_mcnemar(preds_test, preds_test_for, y_test)
+result_C = stat_test_mcnemar(preds_test_for, preds_test_bag, y_test)
+
+print("tree+bag: \n", result_A)
+print("tree+for: \n", result_B)
+print("for+bag: \n", result_C)
