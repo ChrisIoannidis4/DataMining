@@ -21,15 +21,27 @@ class TreeNode:
     def is_leaf(self):
         return self.label is not None  # boolean, if it is leaf or not (so that we know if it is the classifier node)
 
+
 def gini_index(y_array):
+    """
+    Calculates gini impurity for given split from the labels of the samples in the node
+    
+    returns calculated gini value
+    """
+    
+    # count 0s and 1s in label column
     num_zeros = (y_array == 0).sum()
     num_ones = (y_array == 1).sum()
+    # num of samples in node
     total = num_zeros + num_ones
     if total == 0:  
         return 0
+    # calculate class probs 
     p_0 = num_zeros / total
     p_1 = num_ones / total
+    
     return 1 - (p_0 ** 2 + p_1 ** 2)
+
 
 # Returns splits: dictionary of the possible splitting point and the calculated impurity for them 
 def define_splits(x, y, minleaf):
@@ -53,13 +65,25 @@ def define_splits(x, y, minleaf):
     return splits
 
 def best_split(x, y, minleaf):
+    """
+    Recursive function to calculate the best split for a single column x
+
+    x: array/feature column for which to find best split point
+    y:  array/ label column 
+    minleaf: minimum number of observations required for a leaf node
+
+    returns split index and dictionary
+    """
     split_dict = define_splits(x, y, minleaf)
+    
     if not split_dict:
         return None, None # if no splitting points are found for the particular feature, pass 
     split_value = min(split_dict, key=split_dict.get) #the key in the dictionary (splitting point) for which the value (impurity) is minimized
+    
     return split_value, split_dict[split_value]
 
 def majority_class(y):
+    # function to find majority class from label column
     num_zeros = (y == 0).sum()
     num_ones = (y == 1).sum()
     if num_ones>=num_zeros:
@@ -69,7 +93,20 @@ def majority_class(y):
     # return np.argmax(np.bincount(y)) # this is used for leaf node's utility of predicting the majority class
 
 def tree_grow(x, y, nmin, minleaf, nfeat):
-    if len(y) < nmin or len(set(y)) == 1:  #stopping if pure node or fewer than nmin samples, creates leaf node
+    """
+    Fit tree to the training data with specified hyperparameters. Return tree object 
+
+    x: attribute values
+    y: class labels
+    nmin: minimum number of observations in node for split
+    minleaf: minimum number of observations required for a leaf node
+    nfeat: number of features considered for each split 
+    
+    returns grown tree 
+    """
+
+    #stop if pure node or fewer than nmin samples, creates leaf node
+    if len(y) < nmin or len(set(y)) == 1:  
         return TreeNode(label=majority_class(y))
 
     features_to_consider = np.random.choice(range(x.shape[1]), nfeat, replace=False) #for random forests, bagging
@@ -102,6 +139,13 @@ def tree_grow(x, y, nmin, minleaf, nfeat):
             
 
 def predict_single(instance, node):
+    """
+    Predicts class for a single example. Used in tree_pred function.
+
+    instance: single example from the data
+    node: tree
+    returns model prediction for the single sample
+    """
     while not node.is_leaf(): #go through the nodes until we reach the leaf one that is the final classifier
         if instance[node.feature] <= node.split_thr:
             node = node.left_child 
@@ -114,40 +158,33 @@ def tree_pred(x, tr):
     """
     x: 2D numpy array (n_samples, n_features) 
     tr: The decision tree object (root node) created in tree_grow
+
+    returns array of predictions for given tree
     """
     return np.array([predict_single(row, tr) for row in x])
-
-    
-def draw_sample(x, y):
-    """
-    Performs sampling with replacement on data
-
-    :x: attribute values
-    :y: class labels
-    """
-    n_samples = len(y)
-    sample_idx = random.choices(range(n_samples), k=n_samples)
-
-    x_sampled = np.array([x[i] for i in sample_idx])
-    y_sampled = np.array([y[i] for i in sample_idx])
-
-    return x_sampled, y_sampled
 
 
 def tree_grow_b(x, y, nmin, minleaf, nfeat, m):
     """
-    Draws m bootstrap samples and returns a list of m trees
+    Draws m bootstrap samples and returns a list of m trees. Extension of tree_grow 
 
-    :x: attribute values
-    :y: class labels
-    :nmin: minimum number of observations in node for split
-    :minleaf: minimum number of observations required for a leaf node
-    :nfeat: number of features considered for each split 
-    :m: number of bootstrap samples to be drawn
+    x: attribute values
+    y: class labels
+    nmin: minimum number of observations in node for split
+    minleaf: minimum number of observations required for a leaf node
+    nfeat: number of features considered for each split 
+    m: number of bootstrap samples to be drawn
+
+    returns a list of trees
     """    
+
+    # initialize list  
     ensemble = []
+    
     for i in range(m):
+        # draw bootstrap sample
         x_sampled, y_sampled = draw_sample(x, y)
+        # fit a tree to drawn sample and append to list 
         ensemble.append(tree_grow(x_sampled, y_sampled, nmin, minleaf, nfeat))
 
     return ensemble
@@ -157,9 +194,13 @@ def tree_pred_b(x, trees):
     """
     Gets predictions from m trees for all data points
 
-    :x: 2D numpy array (n_samples, n_features) 
-    :tr: The decision tree object (root node) created in tree_grow
+    x: 2D numpy array (n_samples, n_features) 
+    tr: The decision tree object (root node) created in tree_grow
+
+    returns an array with the model's predictions
     """
+
+    # get model's predictions 
     votes = [tree_pred(x, tr) for tr in trees]
 
     # Transpose so that every row has the votes for a sample 
@@ -168,17 +209,38 @@ def tree_pred_b(x, trees):
     preds = [np.argmax(np.bincount(votes_array[i])) for i in range(votes_array.shape[0])]
 
     return np.array(preds)
+    
+
+def draw_sample(x, y):
+    """
+    Performs sampling with replacement on data
+
+    x: attribute values
+    y: class labels
+
+    returns arrays with sample data and their labels
+    """
+    n_samples = len(y)
+    # choose n_samples randomly with replacement
+    sample_idx = random.choices(range(n_samples), k=n_samples)
+    
+    x_sampled = np.array([x[i] for i in sample_idx])
+    y_sampled = np.array([y[i] for i in sample_idx])
+
+    return x_sampled, y_sampled
+
+
 
 
 def write_results(filename, train_preds, y_train, test_preds, y_test):
     """
-    Write results on train and test data in a text file and save confusion matrices
+    Writes results for all models on train and test splits to a text file and saves confusion matrices as png files
     
-    :filename: how the text file is going to be named
-    :train_preds: predictions on train data
-    :y_train: train set labels
-    :test_preds: predictions on test data
-    :y_test: test set labels
+    filename: how the text file is going to be named
+    train_preds: predictions on train data
+    y_train: train set labels
+    test_preds: predictions on test data
+    y_test: test set labels
     """
     with open(f'./{filename}.txt', 'w') as f:
         f.write('Train Results')
